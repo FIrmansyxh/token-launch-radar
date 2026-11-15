@@ -127,7 +127,9 @@ export interface RadarData {
   board_size: number;
   early_size: number;
   live_size: number;
+  launch_discount: number;
   sector_multiples: Record<string, number>;
+  calibration: CategoryEvidence[];
   rows: RadarRow[];
   live: LiveRow[];
 }
@@ -235,6 +237,93 @@ export const TVL_KIND_LABEL: Record<TvlKind, string> = {
 /** The multiple an unlisted category gets: the middle of the run above. */
 export const DEFAULT_SECTOR = 0.3;
 
+/**
+ * A launch is priced below a live market, for two reasons: the token sells into demand that does not
+ * exist yet, and a launch valuation is set before the market has had a chance to disagree. So where a
+ * category already trades in this snapshot, its observed median market cap over TVL is discounted to
+ * become the launch multiple, instead of being copied.
+ */
+export const LAUNCH_DISCOUNT = 0.35;
+
+/** How far the evidence may move a prior: never below half of it, never above two and a half times. */
+export const MULTIPLE_BAND = { low: 0.5, high: 2.5 };
+
+/** The hand-set prior for a category, before the snapshot's own live protocols have a say. */
+export function priorMultiple(category: string | null): number {
+  if (category === null) return DEFAULT_SECTOR;
+  const direct = SECTOR_MULTIPLES[category];
+  if (direct !== undefined) return direct;
+  // DefiLlama keeps adding sub-categories ("Dexs (Derivatives)", "RWA Lending"); match on the stem.
+  const lower = category.toLowerCase();
+  for (const [name, multiple] of Object.entries(SECTOR_MULTIPLES)) {
+    if (lower.startsWith(name.toLowerCase())) return multiple;
+  }
+  return DEFAULT_SECTOR;
+}
+
+/** What a category's live protocols price at: the median market cap over TVL, and how many it is. */
+export interface CategoryEvidence {
+  category: string | null;
+  live: number;
+  observed_median: number | null;
+  prior: number;
+  used: number;
+  source: 'evidence' | 'prior';
+}
+
+/** The median of a list of numbers, or null for an empty list. */
+function median(values: number[]): number | null {
+  if (values.length === 0) return null;
+  const sorted = values.slice().sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 1 ? sorted[mid]! : (sorted[mid - 1]! + sorted[mid]!) / 2;
+}
+
+/**
+ * Every category's multiple, from the snapshot's own evidence: the median market cap over TVL of the
+ * protocols in that category that already trade, discounted for launch and held inside the band
+ * around the prior. A category with fewer than two live protocols keeps its prior, because one
+ * comparison is an anecdote.
+ */
+export function categoryEvidence(snapshot: Snapshot): CategoryEvidence[] {
+  const groups = new Map<string | null, number[]>();
+  for (const p of snapshot.protocols) {
+    if (isPreToken(p)) continue;
+    if (p.category === 'CEX') continue;
+    if (p.mcap_usd === null || p.mcap_usd <= 0 || p.tvl_usd <= 0) continue;
+    const key = p.category;
+    const list = groups.get(key) ?? [];
+    list.push(p.mcap_usd / p.tvl_usd);
+    groups.set(key, list);
+  }
+  const categories = new Set<string | null>();
+  for (const p of snapshot.protocols) categories.add(p.category);
+  const out: CategoryEvidence[] = [];
+  for (const category of categories) {
+    const ratios = groups.get(category) ?? [];
+    const prior = priorMultiple(category);
+    const observed = ratios.length >= 2 ? median(ratios) : null;
+    let used = prior;
+    let source: 'evidence' | 'prior' = 'prior';
+    if (observed !== null && observed > 0) {
+      const discounted = observed * LAUNCH_DISCOUNT;
+      used = Math.min(prior * MULTIPLE_BAND.high, Math.max(prior * MULTIPLE_BAND.low, discounted));
+      used = Math.round(used * 1e4) / 1e4;
+      source = 'evidence';
+    }
+    out.push({ category, live: ratios.length, observed_median: observed === null ? null : Math.round(observed * 1e4) / 1e4, prior, used, source });
+  }
+  out.sort((a, b) => (a.category ?? '').localeCompare(b.category ?? ''));
+  return out;
+}
+
+/** A lookup from category to the multiple the board used, built from `categoryEvidence`. */
+export function multipleLookup(evidence: CategoryEvidence[]): (category: string | null) => number {
+  const map = new Map<string | null, number>();
+  for (const e of evidence) map.set(e.category, e.used);
+  return (category) => map.get(category) ?? priorMultiple(category);
+}
+
 /** Where a chain's TVL is worth more: deeper liquidity and a livelier token market. */
 export const CHAIN_WEIGHTS: Record<string, number> = {
   Ethereum: 1.15,
@@ -339,9 +428,9 @@ export function isRankable(p: SnapshotProtocol): boolean {
 export function impliedValue(
   p: SnapshotProtocol,
   asOf: string,
+  sector: number = sectorMultiple(p.category),
 ): { implied: number; age: number | null; sector: number; chain: number; growth: number; maturity: number } {
   const age = ageDays(asOf, p.listed_at);
-  const sector = sectorMultiple(p.category);
   const chain = chainMultiplier(p.chains);
   const growth = growthMultiplier(p.change_7d).multiplier;
   const maturity = maturityMultiplier(age);
@@ -577,7 +666,7 @@ function bySlug(protocols: SnapshotProtocol[]): Map<string, SnapshotProtocol> {
 }
 
 /** The protocols the board ranks, strongest first, with ranks 1..n. */
-export function buildBoard(snapshot: Snapshot): BoardRow[] {
+export function buildBoard(snapshot: Snapshot, multipleOf: (category: string | null) => number = priorMultiple): BoardRow[] {
   const index = bySlug(snapshot.protocols);
   const chosen = new Map<string, SnapshotProtocol>();
   // The watchlist is a floor of coverage, never a ceiling: every slug it names is ranked.
@@ -592,7 +681,7 @@ export function buildBoard(snapshot: Snapshot): BoardRow[] {
     .slice(0, EARLY_ROWS);
   for (const p of early) chosen.set(p.slug, p);
 
-  const scored = [...chosen.values()].map((p) => ({ p, ...impliedValue(p, snapshot.as_of) }));
+  const scored = [...chosen.values()].map((p) => ({ p, ...impliedValue(p, snapshot.as_of, multipleOf(p.category)) }));
   scored.sort((a, b) => b.implied - a.implied || (a.p.slug < b.p.slug ? -1 : a.p.slug > b.p.slug ? 1 : 0));
   return scored.map((s, i) => ({
     rank: i + 1,
@@ -640,8 +729,11 @@ export function liveRows(snapshot: Snapshot): LiveRow[] {
 
 /** Everything the page renders, from the snapshot. */
 export function buildRadar(snapshot: Snapshot): { board: BoardRow[]; radar: RadarData } {
-  const board = buildBoard(snapshot);
+  // The live set and the evidence drawn from it come first: the board is priced on them.
   const live = liveRows(snapshot);
+  const calibration = categoryEvidence(snapshot);
+  const multipleOf = multipleLookup(calibration);
+  const board = buildBoard(snapshot, multipleOf);
   const index = bySlug(snapshot.protocols);
   const watchlist = new Set(snapshot.watchlist);
   const rows: RadarRow[] = board.map((row) => {
@@ -682,7 +774,9 @@ export function buildRadar(snapshot: Snapshot): { board: BoardRow[]; radar: Rada
     board_size: board.length,
     early_size: board.filter((r) => !watchlist.has(r.slug)).length,
     live_size: live.length,
+    launch_discount: LAUNCH_DISCOUNT,
     sector_multiples: SECTOR_MULTIPLES,
+    calibration,
     rows,
     live,
   };

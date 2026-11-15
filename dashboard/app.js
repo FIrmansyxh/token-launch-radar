@@ -97,7 +97,7 @@
       state.view = 'detail';
       state.slug = decodeURIComponent(path.slice(2));
     } else {
-      state.view = path === 'radar' || path === 'method' ? path : 'board';
+      state.view = path === 'radar' || path === 'method' || path === 'calibration' ? path : 'board';
       state.slug = null;
     }
   }
@@ -307,6 +307,66 @@
     return html;
   }
 
+  // -------------------------------------------------------------- calibration view
+
+  /** The median of a list of numbers, or null for an empty list. */
+  function median(values) {
+    if (values.length === 0) return null;
+    var sorted = values.slice().sort(function (a, b) { return a - b; });
+    var mid = Math.floor(sorted.length / 2);
+    return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+  }
+
+  function viewCalibration() {
+    var evidence = R.calibration || [];
+    var ratios = R.live.filter(function (l) { return l.mcap_usd !== null && l.tvl_usd > 0; })
+      .map(function (l) { return l.mcap_usd / l.tvl_usd; });
+    var overall = median(ratios);
+    var repriced = evidence.filter(function (e) { return e.source === 'evidence'; });
+    var html = '<div class="block-head"><h2>Market calibration</h2><p>What the protocols that already trade are worth ' +
+      'against their own TVL, and the multiple the board took from each category because of it.</p></div>';
+    html += '<div class="calib-kpis">' +
+      '<div><span>Live protocols sampled</span><strong>' + R.live.length + '</strong></div>' +
+      '<div><span>Median market cap / TVL</span><strong>' + (overall === null ? 'n/a' : overall.toFixed(2) + 'x') + '</strong></div>' +
+      '<div><span>Categories re-priced on evidence</span><strong>' + repriced.length + ' of ' + evidence.length + '</strong></div>' +
+      '<div><span>Launch discount on that evidence</span><strong>' + Math.round((R.launch_discount || 0.35) * 100) + '%</strong></div>' +
+      '</div>';
+    html += '<div class="cols"><div>';
+    html += '<div class="panel"><h3>Each category the snapshot settles</h3><table class="mult-table"><thead><tr>' +
+      '<th>Category</th><th class="n">Live</th><th class="n">Observed mcap/TVL</th><th class="n">Prior</th><th class="n">Used</th>' +
+      '</tr></thead><tbody>';
+    html += repriced.map(function (e) {
+      return '<tr><td>' + esc(e.category || 'unclassified') + '</td><td class="n">' + e.live + '</td>' +
+        '<td class="n">' + e.observed_median.toFixed(2) + 'x</td>' +
+        '<td class="n dim-cell">' + e.prior.toFixed(2) + 'x</td>' +
+        '<td class="n">' + e.used.toFixed(2) + 'x</td></tr>';
+    }).join('');
+    html += '</tbody></table>' +
+      '<p class="note">A category with two or more live protocols is re-priced: its observed median market cap over ' +
+      'TVL, times the launch discount, held inside half to two and a half times the prior. A category with one live ' +
+      'protocol keeps its prior, because a single comparison is an anecdote; the rest of the snapshot&rsquo;s ' +
+      'categories are priced on the prior alone.</p></div>';
+    html += '<div class="panel"><h3>Every category on the board</h3><table class="mult-table"><thead><tr>' +
+      '<th>Category</th><th class="n">Live</th><th class="n">Multiple used</th><th class="n">Source</th></tr></thead><tbody>';
+    html += evidence.slice().sort(function (a, b) { return b.used - a.used; }).map(function (e) {
+      return '<tr><td>' + esc(e.category || 'unclassified') + '</td><td class="n">' + e.live + '</td>' +
+        '<td class="n">' + e.used.toFixed(2) + 'x</td><td class="n dim-cell">' + esc(e.source) + '</td></tr>';
+    }).join('');
+    html += '</tbody></table></div>';
+    html += '</div><div>';
+    html += '<div class="panel"><h3>The live set</h3><table class="mult-table"><thead><tr>' +
+      '<th>Protocol</th><th class="n">TVL</th><th class="n">Market cap</th><th class="n">mcap/TVL</th></tr></thead><tbody>';
+    html += R.live.map(function (l) {
+      var ratio = l.mcap_usd !== null && l.tvl_usd > 0 ? l.mcap_usd / l.tvl_usd : null;
+      return '<tr><td>' + esc(l.name) + '<span class="dim"> / ' + esc(l.category || 'unclassified') + '</span></td>' +
+        '<td class="n">' + compact(l.tvl_usd) + '</td><td class="n">' + compact(l.mcap_usd) + '</td>' +
+        '<td class="n">' + (ratio === null ? 'n/a' : ratio.toFixed(2) + 'x') + '</td></tr>';
+    }).join('');
+    html += '</tbody></table></div>';
+    html += '</div></div>';
+    return html;
+  }
+
   // -------------------------------------------------------------- method view
 
   function viewMethod() {
@@ -322,8 +382,10 @@
       'fully diluted value, with a range beside it, because one TVL reading is a thin basis for a valuation.</p>' +
       '<h2>The formula</h2>' +
       '<div class="formula">implied = TVL x sector x chain x momentum x maturity\n\n' +
-      'sector    what a dollar of TVL is worth in this category, 0.12x to 0.60x\n' +
-      'chain     the best chain\'s weight, plus 0.02 per extra chain, capped at 4\n' +
+      'sector    the category\'s multiple, from its own live protocols where it has two\n' +
+      '          or more: median market cap / TVL x ' + (R.launch_discount || 0.35) + ', held inside 0.5x to 2.5x\n' +
+      '          of the prior. Elsewhere the prior itself, 0.05x to 0.60x.\n' +
+      'chain     the best chain\'s weight, plus 0.01 per extra chain, capped at 3\n' +
       'momentum  1 + (clamp(change_7d, -50, +100) / 100) x 0.45\n' +
       'maturity  0.85 + min(age_days, 1825) / 1825 x 0.35\n' +
       'range     implied x 0.65 to implied x 1.35</div>' +
@@ -341,7 +403,10 @@
       '<h2>Sector multiples</h2>' +
       '<p>Each multiple is what comparable launches in that category traded at, relative to the TVL the ' +
       'protocol carried before its token. Lending and DEXs sit in the middle; bridges and stablecoins are ' +
-      'cheaper per dollar of TVL because their TVL is not their revenue.</p>' +
+      'cheaper per dollar of TVL because their TVL is not their revenue. The Calibration tab puts this ' +
+      'snapshot\'s own live protocols beside the multiples, category by category, so the anchor is visible ' +
+      'rather than claimed: where a category trades and the sample is more than one protocol, the observed ' +
+      'market cap over TVL is shown next to the multiple the board used and the gap between them.</p>' +
       '<table class="mult-table"><thead><tr><th>Category</th><th class="n">Multiple</th></tr></thead><tbody>' +
       sectors + '</tbody></table>' +
       '<h2>Readiness is a second question</h2>' +
@@ -447,6 +512,7 @@
     renderChips(rows);
     if (state.view === 'detail') view.innerHTML = viewDetail();
     else if (state.view === 'radar') view.innerHTML = viewRadar();
+    else if (state.view === 'calibration') view.innerHTML = viewCalibration();
     else if (state.view === 'method') view.innerHTML = viewMethod();
     else view.innerHTML = viewBoard();
     var colophon = document.getElementById('colophon');

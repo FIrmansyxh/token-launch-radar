@@ -1015,6 +1015,53 @@ td.who .tags .cat {
   color: var(--amber);
 }
 
+.mult-table td .dim {
+  color: var(--ink-faint);
+  font-size: 11px;
+}
+
+.mult-table td.dim-cell {
+  color: var(--ink-faint);
+}
+
+.note {
+  margin: 12px 0 0;
+  color: var(--ink-faint);
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+
+.calib-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin: 4px 0 18px;
+}
+
+.calib-kpis > div {
+  padding: 14px 16px;
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.calib-kpis span {
+  display: block;
+  color: var(--ink-faint);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.calib-kpis strong {
+  display: block;
+  margin-top: 5px;
+  font-family: var(--mono);
+  font-size: 22px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
 /* ---------------------------------------------------------------- misc */
 
 .empty {
