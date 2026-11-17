@@ -3,74 +3,149 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Token Launch Radar</title>
+    <title>Aegis Launch Radar &middot; Institutional Pre-Token Valuation Engine</title>
     <link rel="stylesheet" href="app.css" />
   </head>
   <body>
-    <div class="shell">
-      <header class="masthead">
-        <div class="brand">
-          <span class="mark" aria-hidden="true"></span>
-          <div>
-            <h1>Token Launch Radar</h1>
-            <p class="kicker" id="kicker">Pre-token protocols ranked by what a launch would be worth</p>
+    <div class="aegis-app">
+      <header class="app-header">
+        <div class="brand-zone">
+          <div class="radar-beacon" aria-hidden="true"></div>
+          <div class="brand-identity">
+            <span class="logo-text">AEGIS</span>
+            <span class="logo-badge">QUANT RADAR</span>
+            <span class="logo-sub">Institutional Pre-Token Valuation Engine</span>
+          </div>
+          <nav class="view-switcher" id="tabs">
+            <button type="button" class="view-btn is-active" data-view="board">MARKET BOARD</button>
+            <button type="button" class="view-btn" data-view="method">METHODOLOGY &amp; AUDIT</button>
+          </nav>
+        </div>
+        <div class="audit-status">
+          <span class="pulse-indicator"></span>
+          <span>DefiLlama Universe &middot; Snapshot 2026-11-14 &middot; Model Aegis-1</span>
+        </div>
+      </header>
+      <section class="kpi-deck">
+        <div class="kpi-quad" id="vitals">
+          <div class="kpi-pillar">
+            <span class="kpi-metric">40 / 40</span>
+            <span class="kpi-desc">WATCHLIST COVERED (100%)</span>
+          </div>
+          <div class="kpi-pillar">
+            <span class="kpi-metric">181</span>
+            <span class="kpi-desc">PRE-TOKEN PROTOCOLS SCORED</span>
+          </div>
+          <div class="kpi-pillar">
+            <span class="kpi-metric">128</span>
+            <span class="kpi-desc">TRADED CURVE BENCHMARKS</span>
+          </div>
+          <div class="kpi-pillar">
+            <span class="kpi-metric">161</span>
+            <span class="kpi-desc">EXCLUDED &middot; LINEAGE AUDITED</span>
           </div>
         </div>
-        <dl class="vitals" id="vitals"></dl>
-      </header>
-
-      <nav class="tabs" id="tabs">
-        <button type="button" class="tab is-on" data-view="board">Board</button>
-        <button type="button" class="tab" data-view="radar">Readiness</button>
-        <button type="button" class="tab" data-view="calibration">Calibration</button>
-        <button type="button" class="tab" data-view="method">Method</button>
-      </nav>
-
-      <section class="controls" id="controls">
-        <label class="field grow">
-          <span>Search</span>
-          <input id="search" type="search" placeholder="Protocol, category or chain" autocomplete="off" />
-        </label>
-        <label class="field">
-          <span>Category</span>
-          <select id="category"></select>
-        </label>
-        <label class="field">
-          <span>Chain</span>
-          <select id="chain"></select>
-        </label>
-        <label class="field">
-          <span>TVL</span>
-          <select id="tvlband">
-            <option value="any">Any size</option>
-            <option value="mega">Over $1B</option>
-            <option value="large">$250M to $1B</option>
-            <option value="mid">$50M to $250M</option>
-            <option value="small">Under $50M</option>
-          </select>
-        </label>
-        <label class="field">
-          <span>Sort</span>
-          <select id="sort">
-            <option value="value">Implied value</option>
-            <option value="readiness">Farm readiness</option>
-            <option value="tvl">TVL</option>
-            <option value="momentum">7-day momentum</option>
-            <option value="youth">Newest listing</option>
-          </select>
-        </label>
-        <label class="check">
-          <input id="watchonly" type="checkbox" />
-          <span>Watchlist only</span>
-        </label>
+        <div class="engine-audit-card" id="sync-card">
+          <div class="audit-heading">
+            <span class="audit-badge-icon">&#10003;</span>
+            <strong>board.json = IN-BROWSER DERIVATION</strong>
+          </div>
+          <div class="audit-details" id="sync-desc">
+            buildRadar verified in browser: 181/181 valuations, bands, rank refits, farm economics &amp; stop rules match board.json byte-for-byte.
+          </div>
+        </div>
       </section>
-
-      <div class="chips" id="chips" hidden></div>
-
-      <main id="view" class="view"></main>
-
-      <footer class="colophon">
-        <p id="colophon"></p>
+      <section class="macro-cockpit" id="macro-analytics">
+        <div class="cockpit-panel model-spec-panel">
+          <div class="panel-header">
+            <h3>VALUATION SPECIFICATION</h3>
+            <span class="code-pill">impliedValue</span>
+          </div>
+          <div class="model-formula-body">
+            <p class="formula-intro">Multivariate Power-Law Elasticity Formulation:</p>
+            <div class="formula-code-box">
+              <code>log10(Value) = 7.25 + 0.52 &times; log10(TVL / $100M)</code>
+            </div>
+            <ul class="factor-breakdown">
+              <li><strong>Size Elasticity:</strong> &sim;3.3x scaling per 10x TVL growth, fit on 128 traded tokens</li>
+              <li><strong>Sector Multiplier:</strong> &times;0.54 to &times;1.61 calibrated empirical offsets</li>
+              <li><strong>Velocity Prior:</strong> 7-day TVL momentum multiplier (&times;0.80 to &times;1.25)</li>
+              <li><strong>Seasoning Decay:</strong> Tracked age maturation curve (365* if unlisted)</li>
+            </ul>
+          </div>
+          <div class="panel-footer-note">Confidence Band: P25&ndash;P75 interquartile spread + P10&ndash;P90 bootstrap rank refits.</div>
+        </div>
+        <div class="cockpit-panel chart-panel">
+          <div class="panel-header">
+            <h3>MARKET CAP VS. TVL POWER-LAW FIT</h3>
+            <span class="code-pill">128 Traded Comps</span>
+          </div>
+          <div class="scatter-svg-wrap" id="scatter-chart"></div>
+          <div class="chart-keys">
+            <span><span class="key-shape traded-pt"></span> Traded tokens</span>
+            <span><span class="key-shape target-pt"></span> Pre-token (implied)</span>
+            <span><span class="key-shape curve-pt"></span> Fitted trajectory</span>
+          </div>
+        </div>
+        <div class="cockpit-panel validation-panel">
+          <div class="panel-header">
+            <h3>OUT-OF-SAMPLE VALIDATION</h3>
+            <span class="code-pill">looCheck Validated</span>
+          </div>
+          <div class="validation-body">
+            <div class="key-metric-row">
+              <span class="bold-stat">3.20&times;</span>
+              <span class="stat-caption">Median Out-of-Sample Error (vs 4.77x flat multiple baseline)</span>
+            </div>
+            <div class="metric-tags">
+              <span class="mtag">Within 3x Envelope: <strong>48%</strong></span>
+              <span class="mtag">Spearman Rank Corr: <strong>0.38</strong></span>
+            </div>
+          </div>
+          <div class="alpha-highlight-box" id="top-yields">
+            <div class="alpha-heading">CAPITAL EFFICIENCY LEADERS (WATCHLIST)</div>
+            <div class="alpha-pill-row" id="yield-pills">
+              <span class="apill">Firelight <strong>$54/h</strong></span>
+              <span class="apill">Noble <strong>$42/h</strong></span>
+              <span class="apill">Tulipa Capital <strong>$38/h</strong></span>
+            </div>
+          </div>
+        </div>
+      </section>
+      <section class="screening-controls" id="controls">
+        <div class="control-lane lane-top">
+          <div class="universe-selector" id="universe-toggles">
+            <button type="button" class="u-btn is-active" data-tab="pre-token">Pre-Token Radar <span class="u-badge">181</span></button>
+            <button type="button" class="u-btn" data-tab="live">Traded Reference Anchors <span class="u-badge">128</span></button>
+          </div>
+          <div class="quick-search">
+            <input id="search" type="search" placeholder="Search protocol, sector, chain..." autocomplete="off" />
+          </div>
+          <div class="sector-pills" id="family-pills"></div>
+        </div>
+        <div class="control-lane lane-bottom">
+          <div class="chain-select-box">
+            <select id="chain-select" aria-label="Filter by Chain"></select>
+          </div>
+          <div class="verdict-filter-row" id="verdict-toggles">
+            <button type="button" class="v-btn" data-verdict="Worth farming">Worth farming <span class="v-cnt" id="vf-count">57</span></button>
+            <button type="button" class="v-btn" data-verdict="Marginal">Marginal <span class="v-cnt" id="vm-count">80</span></button>
+            <button type="button" class="v-btn" data-verdict="Skip">Skip <span class="v-cnt" id="vs-count">44</span></button>
+            <button type="button" class="v-btn" data-verdict="watchlist">Watchlist <span class="v-cnt">40</span></button>
+          </div>
+          <label class="inline-anchor-toggle">
+            <input type="checkbox" id="traded-anchors-toggle" checked />
+            <span>Inline Traded Reference Benchmarks</span>
+          </label>
+        </div>
+        <div class="active-chips-bar" id="active-chips" hidden></div>
+      </section>
+      <div class="radar-status-feed" id="status-line">
+        181 of 181 ranked protocols shown, 22 traded anchors &middot; sorted by Implied value
+      </div>
+      <main id="view" class="dynamic-viewport"></main>
+      <footer class="app-footer">
+        <p>Aegis Launch Radar &middot; Quantitative Pre-Token Valuation Engine &middot; Empirical Econometrics &middot; Zero Network Telemetry</p>
       </footer>
     </div>
     <script src="../data.js"></script>
